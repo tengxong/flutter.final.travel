@@ -1,0 +1,29 @@
+{
+  "project_info": {
+    "project_number": "595624494894",
+    "project_id": "travaning",
+    "storage_bucket": "travaning.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:595624494894:android:2b32b26dc5a58b5a7c9cbf",
+        "android_client_info": {
+          "package_name": "com.example.app_travel"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyDFmTBhjFnRyWPVBk3t8X0BKVi_IVcu_8E"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}
