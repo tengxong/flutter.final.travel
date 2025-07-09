@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:app_travel/screens/explore_screen.dart';
+import 'package:app_travel/screens/map_screen.dart';
 
 class DetailScreen extends StatelessWidget {
   final String title;
@@ -9,6 +10,8 @@ class DetailScreen extends StatelessWidget {
   final String mainImage;
   final List<String> moreImages;
   final String location;
+  final double latitude;
+  final double longitude;
 
   const DetailScreen({
     super.key,
@@ -18,6 +21,8 @@ class DetailScreen extends StatelessWidget {
     required this.mainImage,
     required this.moreImages,
     required this.location,
+    required this.latitude,
+    required this.longitude,
   });
 
   @override
@@ -28,10 +33,17 @@ class DetailScreen extends StatelessWidget {
           SliverAppBar(
             expandedHeight: 250.0,
             flexibleSpace: FlexibleSpaceBar(
-              background: Image.asset(
-                mainImage,
-                fit: BoxFit.cover,
-              ),
+              background: mainImage.startsWith('http')
+                  ? Image.network(
+                      mainImage,
+                      fit: BoxFit.cover,
+                      errorBuilder: (context, error, stackTrace) => const Center(child: Icon(Icons.broken_image, size: 80)),
+                    )
+                  : Image.asset(
+                      mainImage,
+                      fit: BoxFit.cover,
+                      errorBuilder: (context, error, stackTrace) => const Center(child: Icon(Icons.broken_image, size: 80)),
+                    ),
             ),
             leading: IconButton(
               icon: const Icon(Icons.arrow_back_ios, color: Colors.white), // Back arrow
@@ -93,6 +105,30 @@ class DetailScreen extends StatelessWidget {
                     label: const Text('see the route'),
                     style: ElevatedButton.styleFrom(
                       backgroundColor: Colors.lightBlue,
+                      foregroundColor: Colors.white,
+                      padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 12),
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(30),
+                      ),
+                    ),
+                  ),
+                  const SizedBox(height: 12),
+                  ElevatedButton.icon(
+                    onPressed: () {
+                      Navigator.push(
+                        context,
+                        MaterialPageRoute(
+                          builder: (context) => MapScreen(
+                            lat: latitude,
+                            lng: longitude,
+                          ),
+                        ),
+                      );
+                    },
+                    icon: const Icon(Icons.map),
+                    label: const Text('ดูแผนที่'),
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: Colors.green,
                       foregroundColor: Colors.white,
                       padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 12),
                       shape: RoundedRectangleBorder(

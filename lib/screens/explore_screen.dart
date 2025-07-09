@@ -5,6 +5,7 @@ import 'package:google_fonts/google_fonts.dart';
 import 'package:http/http.dart' as http;
 import 'dart:convert';
 import 'package:logger/logger.dart';
+import 'package:geolocator/geolocator.dart';
 
 class ExploreScreen extends StatefulWidget {
   final String initialLocation;
@@ -25,6 +26,7 @@ class _ExploreScreenState extends State<ExploreScreen> {
   final LatLng _center = LatLng(13.7563, 100.5018); // Bangkok coordinates
   bool _isLoading = false;
   final TextEditingController _searchController = TextEditingController();
+  List<LatLng> _routePoints = [];
 
   @override
   void initState() {
@@ -55,48 +57,80 @@ class _ExploreScreenState extends State<ExploreScreen> {
         width: 40,
         height: 40,
         point: destination,
-        child: const Icon(Icons.location_pin, color: Colors.red, size: 40),
+        child: GestureDetector(
+          onTap: () => _drawRoute(destination!),
+          child: const Icon(Icons.location_pin, color: Colors.red, size: 40),
+        ),
       ),
     );
   }
 
-  Future<void> _searchPlace(String place) async {
-    if (place.isEmpty) return;
-    final apiKey = 'AIzaSyDFmTBhjFnRyWPVBk3t8X0BKVi_IVcu_8E';
-    final url = 'https://maps.googleapis.com/maps/api/geocode/json?address=${Uri.encodeComponent(place)}&key=$apiKey';
+  Future<void> _drawRoute(LatLng destination) async {
     setState(() => _isLoading = true);
     try {
+      // 1. Get current location
+      Position position = await Geolocator.getCurrentPosition(desiredAccuracy: LocationAccuracy.high);
+      LatLng origin = LatLng(position.latitude, position.longitude);
+
+      // 2. Call Google Directions API
+      final apiKey = 'AIzaSyBGsxnpdnxwSCeUISpv3nbJK7CvaK6JGXw'; // ใส่ API Key จริงของคุณที่นี่
+      final url =
+          'https://maps.googleapis.com/maps/api/directions/json?origin=${origin.latitude},${origin.longitude}&destination=${destination.latitude},${destination.longitude}&key=$apiKey';
+
       final response = await http.get(Uri.parse(url));
       final data = json.decode(response.body);
+
       if (data['status'] == 'OK') {
-        final location = data['results'][0]['geometry']['location'];
-        final latLng = LatLng(location['lat'], location['lng']);
-        setState(() {
-          _markers.add(
-            Marker(
-              width: 40,
-              height: 40,
-              point: latLng,
-              child: const Icon(Icons.location_pin, color: Colors.blue, size: 40),
-            ),
-          );
-        });
-        _mapController.move(latLng, 15.0);
+        final points = data['routes'][0]['overview_polyline']['points'];
+        _routePoints = _decodePolyline(points);
+        setState(() {});
+        // ขยับแผนที่ไปยังปลายทาง
+        _mapController.move(destination, 13.0);
       } else {
         if (!mounted) return;
         ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('Place not found')),
+          const SnackBar(content: Text('Route not found')),
         );
       }
     } catch (e) {
-      _logger.e('Error searching place', error: e);
+      _logger.e('Error drawing route', error: e);
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Error searching place')),
+        const SnackBar(content: Text('Error drawing route')),
       );
     } finally {
       if (mounted) setState(() => _isLoading = false);
     }
+  }
+
+  List<LatLng> _decodePolyline(String polyline) {
+    List<LatLng> points = [];
+    int index = 0, len = polyline.length;
+    int lat = 0, lng = 0;
+
+    while (index < len) {
+      int b, shift = 0, result = 0;
+      do {
+        b = polyline.codeUnitAt(index++) - 63;
+        result |= (b & 0x1f) << shift;
+        shift += 5;
+      } while (b >= 0x20);
+      int dlat = ((result & 1) != 0 ? ~(result >> 1) : (result >> 1));
+      lat += dlat;
+
+      shift = 0;
+      result = 0;
+      do {
+        b = polyline.codeUnitAt(index++) - 63;
+        result |= (b & 0x1f) << shift;
+        shift += 5;
+      } while (b >= 0x20);
+      int dlng = ((result & 1) != 0 ? ~(result >> 1) : (result >> 1));
+      lng += dlng;
+
+      points.add(LatLng(lat / 1E5, lng / 1E5));
+    }
+    return points;
   }
 
   @override
@@ -127,6 +161,16 @@ class _ExploreScreenState extends State<ExploreScreen> {
                 subdomains: ['a', 'b', 'c'],
               ),
               MarkerLayer(markers: _markers),
+              if (_routePoints.isNotEmpty)
+                PolylineLayer(
+                  polylines: [
+                    Polyline(
+                      points: _routePoints,
+                      color: Colors.blue,
+                      strokeWidth: 4.0,
+                    ),
+                  ],
+                ),
             ],
           ),
           Positioned(
@@ -157,5 +201,47 @@ class _ExploreScreenState extends State<ExploreScreen> {
         ],
       ),
     );
+  }
+  
+  Future<void> _searchPlace(String place) async {
+    if (place.isEmpty) return;
+    final apiKey = 'YOUR_GOOGLE_MAPS_API_KEY';
+    final url = 'https://maps.googleapis.com/maps/api/geocode/json?address=${Uri.encodeComponent(place)}&key=$apiKey';
+    setState(() => _isLoading = true);
+    try {
+      final response = await http.get(Uri.parse(url));
+      final data = json.decode(response.body);
+      if (data['status'] == 'OK') {
+        final location = data['results'][0]['geometry']['location'];
+        final latLng = LatLng(location['lat'], location['lng']);
+        setState(() {
+          _markers.add(
+            Marker(
+              width: 40,
+              height: 40,
+              point: latLng,
+              child: GestureDetector(
+                onTap: () => _drawRoute(latLng),
+                child: const Icon(Icons.location_pin, color: Colors.blue, size: 40),
+              ),
+            ),
+          );
+        });
+        _mapController.move(latLng, 15.0);
+      } else {
+        if (!mounted) return;
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Place not found')),
+        );
+      }
+    } catch (e) {
+      _logger.e('Error searching place', error: e);
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Error searching place')),
+      );
+    } finally {
+      if (mounted) setState(() => _isLoading = false);
+    }
   }
 } 

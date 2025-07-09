@@ -3,7 +3,6 @@ import 'package:app_travel/home/home_page.dart';
 import 'package:app_travel/screens/profile_screen.dart';
 import 'package:app_travel/screens/category_screen.dart';
 import 'package:app_travel/screens/explore_screen.dart';
-import 'package:app_travel/screens/add_post_screen.dart';
 
 class MainScreen extends StatefulWidget {
   const MainScreen({super.key});
@@ -37,40 +36,14 @@ class _MainScreenState extends State<MainScreen> {
   Widget build(BuildContext context) {
     return Scaffold(
       body: _widgetOptions[_selectedIndex],
-      // floatingActionButton: FloatingActionButton( // Comment out or remove this block
-      //   onPressed: () {
-      //     Navigator.push(
-      //       context,
-      //       MaterialPageRoute(builder: (context) => const AddPostScreen()),
-      //     );
-      //   },
-      //   backgroundColor: Colors.orange,
-      //   shape: const CircleBorder(),
-      //   child: const Icon(Icons.add, color: Colors.white),
-      // ),
-      // floatingActionButtonLocation: FloatingActionButtonLocation.centerDocked, // Comment out or remove this line
       bottomNavigationBar: BottomAppBar(
-        // shape: const CircularNotchedRectangle(), // Remove this line
-        // notchMargin: 8.0, // Remove this line
-        height: 60,
         child: Row(
-          mainAxisAlignment: MainAxisAlignment.spaceEvenly,
-          children: <Widget>[
-            Expanded(child: _buildNavItem(0, Icons.home, 'Home')),
-            Expanded(child: _buildNavItem(1, Icons.grid_view, 'Category')),
-            FloatingActionButton(
-              onPressed: () {
-                Navigator.push(
-                  context,
-                  MaterialPageRoute(builder: (context) => const AddPostScreen()),
-                );
-              },
-              backgroundColor: Colors.orange,
-              shape: const CircleBorder(),
-              child: const Icon(Icons.add, color: Colors.white),
-            ), // FAB as a child of the row
-            Expanded(child: _buildNavItem(2, Icons.location_on, 'Explore')),
-            Expanded(child: _buildNavItem(3, Icons.person, 'Profile')),
+          mainAxisAlignment: MainAxisAlignment.spaceAround,
+          children: [
+            _buildNavItem(0, Icons.home, 'Home'),
+            _buildNavItem(1, Icons.category, 'Category'),
+            _buildNavItem(2, Icons.explore, 'Explore'),
+            _buildNavItem(3, Icons.person, 'Profile'),
           ],
         ),
       ),

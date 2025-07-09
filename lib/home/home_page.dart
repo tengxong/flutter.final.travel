@@ -6,6 +6,7 @@ import 'dart:convert';
 import 'package:http/http.dart' as http;
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:shared_preferences/shared_preferences.dart';
+import 'package:app_travel/screens/detail_screen.dart'; // Import DetailScreen
 
 class HomePage extends StatefulWidget {
   const HomePage({super.key});
@@ -24,6 +25,8 @@ class Place {
   final String city;
   final String phone;
   final String category;
+  final double latitude;
+  final double longitude;
 
   Place({
     required this.id,
@@ -35,6 +38,8 @@ class Place {
     required this.city,
     required this.phone,
     required this.category,
+    required this.latitude,
+    required this.longitude,
   });
 
   factory Place.fromJson(Map<String, dynamic> json) {
@@ -48,6 +53,8 @@ class Place {
       city: json['address']['city'],
       phone: json['phone'],
       category: json['category'] ?? '',
+      latitude: json['latitude']?.toDouble() ?? 0.0,
+      longitude: json['longitude']?.toDouble() ?? 0.0,
     );
   }
 }
@@ -257,51 +264,18 @@ class _HomePageState extends State<HomePage> {
       await saveHistory(currentUserEmail!);
     }
     if (!mounted) return;
-    showModalBottomSheet(
-      context: context,
-      isScrollControlled: true,
-      backgroundColor: Colors.white,
-      builder: (_) => FractionallySizedBox(
-        heightFactor: 0.8,
-        child: SingleChildScrollView(
-          child: Column(
-            children: [
-              SizedBox(
-                height: MediaQuery.of(context).size.height * 0.4,
-                width: double.infinity,
-                child: Image.network(place.image, fit: BoxFit.cover),
-              ),
-              // Row(
-              //   mainAxisAlignment: MainAxisAlignment.center,
-              //   children: [
-              //     IconButton(
-              //       icon: Icon(
-              //         isBookmarked(place) ? Icons.bookmark : Icons.bookmark_border,
-              //         color: isBookmarked(place) ? Colors.deepOrange : Colors.orange,
-              //       ),
-              //       onPressed: () async {
-              //         await toggleBookmark(place);
-              //       },
-              //     ),
-              //   ],
-              // ),
-              Padding(
-                padding: const EdgeInsets.all(16.0),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(place.name, style: _titleStyle),
-                    Text(place.country, style: _subtitleStyle),
-                    const SizedBox(height: 8),
-                    Text(place.description),
-                    const SizedBox(height: 8),
-                    Text('Address: ${place.street}, ${place.city}'),
-                    Text('Phone: ${place.phone}'),
-                  ],
-                ),
-              ),
-            ],
-          ),
+    Navigator.push(
+      context,
+      MaterialPageRoute(
+        builder: (_) => DetailScreen(
+          title: place.name,
+          subtitle: place.country,
+          description: place.description,
+          mainImage: place.image,
+          moreImages: const [],
+          location: '${place.street}, ${place.city}',
+          latitude: place.latitude,
+          longitude: place.longitude,
         ),
       ),
     );
@@ -317,10 +291,21 @@ class _HomePageState extends State<HomePage> {
         actions: [
           SizedBox(
             child: InkWell(
-              onTap: () => Navigator.push(
-                context,
-                MaterialPageRoute(builder: (context) => const SearchScreen()),
-              ),
+              onTap: () async {
+                final result = await Navigator.push(
+                  context,
+                  MaterialPageRoute(builder: (context) => const SearchScreen()),
+                );
+                if (result != null && result is Place) {
+                  setState(() {
+                    history.removeWhere((p) => p.id == result.id);
+                    history.insert(0, result);
+                  });
+                  if (currentUserEmail != null) {
+                    await saveHistory(currentUserEmail!);
+                  }
+                }
+              },
               child: const Icon(Icons.search),
             ),
           ),

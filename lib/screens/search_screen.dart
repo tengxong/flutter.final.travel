@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart'; // Import GoogleFonts
 import 'dart:convert';
 import 'package:http/http.dart' as http;
+import 'package:app_travel/screens/detail_screen.dart';
 
 class Place {
   final int id;
@@ -13,6 +14,8 @@ class Place {
   final String city;
   final String phone;
   final String category;
+  final double? latitude;
+  final double? longitude;
 
   Place({
     required this.id,
@@ -24,6 +27,8 @@ class Place {
     required this.city,
     required this.phone,
     required this.category,
+    this.latitude,
+    this.longitude,
   });
 
   factory Place.fromJson(Map<String, dynamic> json) {
@@ -37,6 +42,8 @@ class Place {
       city: json['address']['city'],
       phone: json['phone'],
       category: json['category'] ?? '',
+      latitude: json['latitude']?.toDouble(),
+      longitude: json['longitude']?.toDouble(),
     );
   }
 }
@@ -254,14 +261,35 @@ class _SearchScreenState extends State<SearchScreen> {
                         shrinkWrap: true,
                         physics: const NeverScrollableScrollPhysics(),
                         itemCount: filteredPlaces.length,
-                                                 itemBuilder: (context, index) {
-                           final item = filteredPlaces[index];
-                           return _buildSearchResultCard(
-                             item.name,
-                             '${item.country} - ${item.city}',
-                             item.image,
-                           );
-                         },
+                        itemBuilder: (context, index) {
+                          final item = filteredPlaces[index];
+                          return GestureDetector(
+                            onTap: () async {
+                              await Navigator.push(
+                                context,
+                                MaterialPageRoute(
+                                  builder: (_) => DetailScreen(
+                                    title: item.name,
+                                    subtitle: item.country,
+                                    description: item.description,
+                                    mainImage: item.image,
+                                    moreImages: const [],
+                                    location: '${item.street}, ${item.city}',
+                                    latitude: item.latitude ?? 0.0,
+                                    longitude: item.longitude ?? 0.0,
+                                  ),
+                                ),
+                              );
+                              if (!mounted) return;
+                              Navigator.pop(context, item);
+                            },
+                            child: _buildSearchResultCard(
+                              item.name,
+                              '${item.country} - ${item.city}',
+                              item.image,
+                            ),
+                          );
+                        },
                       ),
           ],
         ),
@@ -329,12 +357,6 @@ class _SearchScreenState extends State<SearchScreen> {
                   ),
                 ],
               ),
-            ),
-            IconButton(
-              icon: const Icon(Icons.bookmark_border, color: Colors.grey),
-              onPressed: () {
-                // Handle bookmark
-              },
             ),
           ],
         ),
