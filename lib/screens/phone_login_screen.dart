@@ -3,7 +3,15 @@ import 'package:flutter/services.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:provider/provider.dart';
 import 'package:app_travel/services/auth_service.dart';
-import 'package:app_travel/screens/otp_verification_screen.dart';
+import 'package:app_travel/screens/otp_code_screen.dart';
+import 'package:logger/logger.dart';
+import 'package:firebase_auth/firebase_auth.dart';
+
+final Map<String, String> countryDialCodes = {
+  'laos': '+856',
+  'thailand': '+66',
+  'vietnam': '+84',
+};
 
 class PhoneLoginScreen extends StatefulWidget {
   const PhoneLoginScreen({super.key});
@@ -17,11 +25,21 @@ class _PhoneLoginScreenState extends State<PhoneLoginScreen> {
   final _phoneController = TextEditingController();
   bool _isLoading = false;
   String? _errorMessage;
+  final Logger _logger = Logger();
+  String selectedCountry = 'laos'; // default
 
   @override
   void dispose() {
     _phoneController.dispose();
     super.dispose();
+  }
+
+  String formatPhoneNumber(String phone, String countryCode) {
+    phone = phone.replaceAll(RegExp(r'\s+|-'), '');
+    if (phone.startsWith('0')) {
+      phone = phone.substring(1);
+    }
+    return '$countryCode$phone';
   }
 
   Future<void> _sendOTP() async {
@@ -34,31 +52,38 @@ class _PhoneLoginScreenState extends State<PhoneLoginScreen> {
 
     try {
       final authService = Provider.of<AuthService>(context, listen: false);
-      final phone = _phoneController.text.trim();
-      String fullPhoneNumber;
-      if (phone.startsWith('+')) {
-        fullPhoneNumber = phone;
-      } else if (phone.startsWith('0') && phone.length == 10) {
-        // Thai number
-        fullPhoneNumber = '+66${phone.substring(1)}';
-      } else if (phone.startsWith('020') && phone.length == 10) {
-        // Lao number
-        fullPhoneNumber = '+856${phone.substring(1)}';
-      } else {
-        fullPhoneNumber = phone;
-      }
-
-      print('DEBUG: Sending phone number to Firebase: $fullPhoneNumber');
+      String rawPhone = _phoneController.text.trim();
+      String countryCode = countryDialCodes[selectedCountry] ?? '+856';
+      String formattedPhone = formatPhoneNumber(rawPhone, countryCode);
+      _logger.d('Sending phone number to Firebase: $formattedPhone');
       await authService.sendOTP(
-        phoneNumber: fullPhoneNumber,
+        phoneNumber: formattedPhone,
         onCodeSent: (String verificationId) {
           if (mounted) {
             Navigator.of(context).push(
               MaterialPageRoute(
-                builder: (context) => OTPVerificationScreen(
-                  phoneNumber: fullPhoneNumber,
+                builder: (context) => OtpCodeScreen(
+                  phoneNumber: formattedPhone,
                   verificationId: verificationId,
-                  isRegistration: false,
+                  onVerify: (otp) async {
+                    await authService.verifyOTPAndSignIn(
+                      verificationId: verificationId,
+                      smsCode: otp,
+                    );
+                  },
+                  onResend: () async {
+                    await authService.sendOTP(
+                      phoneNumber: formattedPhone,
+                      onCodeSent: (_) {},
+                      onError: (_) {},
+                    );
+                  },
+                  title: 'Verify Phone Number',
+                  subtitle: 'Please enter the 6-digit code sent to\n$formattedPhone',
+                  successMessage: 'Login successful!',
+                  onSuccess: () {
+                    Navigator.of(context).popUntil((route) => route.isFirst);
+                  },
                 ),
               ),
             );
@@ -150,6 +175,27 @@ class _PhoneLoginScreenState extends State<PhoneLoginScreen> {
                     key: _formKey,
                     child: Column(
                       children: [
+                        Padding(
+                          padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 8),
+                          child: DropdownButtonFormField<String>(
+                            value: selectedCountry,
+                            decoration: const InputDecoration(
+                              labelText: 'Country',
+                              border: OutlineInputBorder(),
+                            ),
+                            items: countryDialCodes.keys.map((country) {
+                              return DropdownMenuItem(
+                                value: country,
+                                child: Text(country[0].toUpperCase() + country.substring(1)),
+                              );
+                            }).toList(),
+                            onChanged: (value) {
+                              setState(() {
+                                selectedCountry = value!;
+                              });
+                            },
+                          ),
+                        ),
                         Container(
                           decoration: BoxDecoration(
                             color: Colors.white,
@@ -265,4 +311,4 @@ class _PhoneLoginScreenState extends State<PhoneLoginScreen> {
       ),
     );
   }
-} 
+}

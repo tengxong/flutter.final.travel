@@ -128,29 +128,36 @@ class _HomePageState extends State<HomePage> {
       final response = await http.get(Uri.parse(url));
       if (response.statusCode == 200) {
         final data = json.decode(response.body);
-        // If the JSON is a map with 'images', use it for images section
-        if (data is Map && data.containsKey('images')) {
-          setState(() {
-            githubImages = List<Place>.from(data['images'].map((e) => Place.fromJson(e)));
-            isLoadingImages = false;
-          });
+        if (data is List) {
+          if (mounted) {
+            setState(() {
+              githubImages = data.map((e) => Place.fromJson(e)).toList();
+              isLoadingImages = false;
+            });
+          }
         } else {
-          setState(() {
-            isLoadingImages = false;
-            errorMessage = 'No images found in JSON.';
-          });
+          if (mounted) {
+            setState(() {
+              isLoadingImages = false;
+              errorMessage = 'No images found in JSON.';
+            });
+          }
         }
       } else {
-        setState(() {
-          isLoadingImages = false;
-          errorMessage = 'Failed to load images (status ${response.statusCode})';
-        });
+        if (mounted) {
+          setState(() {
+            isLoadingImages = false;
+            errorMessage = 'Failed to load images (status ${response.statusCode})';
+          });
+        }
       }
     } catch (e) {
-      setState(() {
-        isLoadingImages = false;
-        errorMessage = 'Failed to load images: $e';
-      });
+      if (mounted) {
+        setState(() {
+          isLoadingImages = false;
+          errorMessage = 'Failed to load images: $e';
+        });
+      }
     }
   }
 
@@ -162,35 +169,45 @@ class _HomePageState extends State<HomePage> {
         final data = json.decode(response.body);
         // If the JSON is a list of places
         if (data is List) {
-          setState(() {
-            places = data.map((e) => Place.fromJson(e)).toList();
-            isLoadingPlaces = false;
-          });
+          if (mounted) {
+            setState(() {
+              places = data.map((e) => Place.fromJson(e)).toList();
+              isLoadingPlaces = false;
+            });
+          }
         } else {
-          setState(() {
-            isLoadingPlaces = false;
-            errorPlaces = 'No places found in JSON.';
-          });
+          if (mounted) {
+            setState(() {
+              isLoadingPlaces = false;
+              errorPlaces = 'No places found in JSON.';
+            });
+          }
         }
       } else {
-        setState(() {
-          isLoadingPlaces = false;
-          errorPlaces = 'Failed to load places (status ${response.statusCode})';
-        });
+        if (mounted) {
+          setState(() {
+            isLoadingPlaces = false;
+            errorPlaces = 'Failed to load places (status ${response.statusCode})';
+          });
+        }
       }
     } catch (e) {
-      setState(() {
-        isLoadingPlaces = false;
-        errorPlaces = 'Failed to load places: $e';
-      });
+      if (mounted) {
+        setState(() {
+          isLoadingPlaces = false;
+          errorPlaces = 'Failed to load places: $e';
+        });
+      }
     }
   }
 
   Future<void> _loadCurrentUserEmailAndHistory() async {
     final user = FirebaseAuth.instance.currentUser;
-    setState(() {
-      currentUserEmail = user?.email;
-    });
+    if (mounted) {
+      setState(() {
+        currentUserEmail = user?.email;
+      });
+    }
     if (currentUserEmail != null) {
       await loadHistory(currentUserEmail!);
     }
@@ -198,17 +215,21 @@ class _HomePageState extends State<HomePage> {
 
   Future<void> loadHistory(String email) async {
     final prefs = await SharedPreferences.getInstance();
-    final key = 'history_$email';
+    final key = 'history_$email';
     final historyJson = prefs.getString(key);
     if (historyJson != null) {
       final List<dynamic> decoded = json.decode(historyJson);
-      setState(() {
-        history = decoded.map((e) => Place.fromJson(e)).toList();
-      });
+      if (mounted) {
+        setState(() {
+          history = decoded.map((e) => Place.fromJson(e)).toList();
+        });
+      }
     } else {
-      setState(() {
-        history = [];
-      });
+      if (mounted) {
+        setState(() {
+          history = [];
+        });
+      }
     }
   }
 
@@ -234,20 +255,24 @@ class _HomePageState extends State<HomePage> {
   Future<void> loadBookmarks() async {
     final prefs = await SharedPreferences.getInstance();
     final ids = prefs.getStringList('bookmarked_place_ids') ?? [];
-    setState(() {
-      bookmarkedPlaceIds = ids.map((e) => int.tryParse(e)).whereType<int>().toSet();
-    });
+    if (mounted) {
+      setState(() {
+        bookmarkedPlaceIds = ids.map((e) => int.tryParse(e)).whereType<int>().toSet();
+      });
+    }
   }
 
   Future<void> toggleBookmark(Place place) async {
     final prefs = await SharedPreferences.getInstance();
-    setState(() {
-      if (bookmarkedPlaceIds.contains(place.id)) {
-        bookmarkedPlaceIds.remove(place.id);
-      } else {
-        bookmarkedPlaceIds.add(place.id);
-      }
-    });
+    if (mounted) {
+      setState(() {
+        if (bookmarkedPlaceIds.contains(place.id)) {
+          bookmarkedPlaceIds.remove(place.id);
+        } else {
+          bookmarkedPlaceIds.add(place.id);
+        }
+      });
+    }
     await prefs.setStringList('bookmarked_place_ids', bookmarkedPlaceIds.map((e) => e.toString()).toList());
   }
 
@@ -256,10 +281,12 @@ class _HomePageState extends State<HomePage> {
   }
 
   void _showPlaceDetail(Place place) async {
-    setState(() {
-      history.removeWhere((p) => p.id == place.id);
-      history.insert(0, place);
-    });
+    if (mounted) {
+      setState(() {
+        history.removeWhere((p) => p.id == place.id);
+        history.insert(0, place);
+      });
+    }
     if (currentUserEmail != null) {
       await saveHistory(currentUserEmail!);
     }
@@ -297,10 +324,12 @@ class _HomePageState extends State<HomePage> {
                   MaterialPageRoute(builder: (context) => const SearchScreen()),
                 );
                 if (result != null && result is Place) {
-                  setState(() {
-                    history.removeWhere((p) => p.id == result.id);
-                    history.insert(0, result);
-                  });
+                  if (mounted) {
+                    setState(() {
+                      history.removeWhere((p) => p.id == result.id);
+                      history.insert(0, result);
+                    });
+                  }
                   if (currentUserEmail != null) {
                     await saveHistory(currentUserEmail!);
                   }

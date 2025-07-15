@@ -86,47 +86,59 @@ class _CategoryScreenState extends State<CategoryScreen> {
       if (response.statusCode == 200) {
         final data = json.decode(response.body);
         if (data is List) {
-          setState(() {
-            places = data.map((e) => Place.fromJson(e)).toList();
-            isLoadingPlaces = false;
-          });
+          if (mounted) {
+            setState(() {
+              places = data.map((e) => Place.fromJson(e)).toList();
+              isLoadingPlaces = false;
+            });
+          }
         } else {
-          setState(() {
-            isLoadingPlaces = false;
-            errorPlaces = 'No places found in JSON.';
-          });
+          if (mounted) {
+            setState(() {
+              isLoadingPlaces = false;
+              errorPlaces = 'No places found in JSON.';
+            });
+          }
         }
       } else {
-        setState(() {
-          isLoadingPlaces = false;
-          errorPlaces = 'Failed to load places (status ${response.statusCode})';
-        });
+        if (mounted) {
+          setState(() {
+            isLoadingPlaces = false;
+            errorPlaces = 'Failed to load places (status ${response.statusCode})';
+          });
+        }
       }
     } catch (e) {
-      setState(() {
-        isLoadingPlaces = false;
-        errorPlaces = 'Failed to load places: $e';
-      });
+      if (mounted) {
+        setState(() {
+          isLoadingPlaces = false;
+          errorPlaces = 'Failed to load places: $e';
+        });
+      }
     }
   }
 
   Future<void> loadBookmarks() async {
     final prefs = await SharedPreferences.getInstance();
     final ids = prefs.getStringList('bookmarked_place_ids') ?? [];
-    setState(() {
-      bookmarkedPlaceIds = ids.map((e) => int.tryParse(e)).whereType<int>().toSet();
-    });
+    if (mounted) {
+      setState(() {
+        bookmarkedPlaceIds = ids.map((e) => int.tryParse(e)).whereType<int>().toSet();
+      });
+    }
   }
 
   Future<void> toggleBookmark(Place place) async {
     final prefs = await SharedPreferences.getInstance();
-    setState(() {
-      if (bookmarkedPlaceIds.contains(place.id)) {
-        bookmarkedPlaceIds.remove(place.id);
-      } else {
-        bookmarkedPlaceIds.add(place.id);
-      }
-    });
+    if (mounted) {
+      setState(() {
+        if (bookmarkedPlaceIds.contains(place.id)) {
+          bookmarkedPlaceIds.remove(place.id);
+        } else {
+          bookmarkedPlaceIds.add(place.id);
+        }
+      });
+    }
     await prefs.setStringList('bookmarked_place_ids', bookmarkedPlaceIds.map((e) => e.toString()).toList());
   }
 
@@ -159,7 +171,7 @@ class _CategoryScreenState extends State<CategoryScreen> {
                   child: Text(
                     value,
                     style: GoogleFonts.poppins(
-                      color: Colors.deepPurple,
+                      color: Colors.lightBlueAccent,
                       fontWeight: FontWeight.bold,
                     ),
                   ),
@@ -171,7 +183,7 @@ class _CategoryScreenState extends State<CategoryScreen> {
               style: GoogleFonts.poppins(
                 fontSize: 20,
                 fontWeight: FontWeight.bold,
-                color: Colors.deepPurple,
+                color: Colors.lightBlueAccent,
               ),
             ),
             Row(

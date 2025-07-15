@@ -1,29 +1,39 @@
 import 'package:flutter/material.dart';
-import 'package:firebase_auth/firebase_auth.dart';
-import 'package:app_travel/screens/forgot_password/new_password_screen.dart';
+import 'package:flutter/services.dart';
 import 'dart:async';
 import 'package:google_fonts/google_fonts.dart';
 
-class OtpVerifyScreen extends StatefulWidget {
+class OtpCodeScreen extends StatefulWidget {
   final String phoneNumber;
   final String verificationId;
-  final String? autoSmsCode;
-  final VoidCallback onResendOtp;
+  final Future<void> Function(String otp) onVerify;
+  final Future<void> Function() onResend;
+  final String? title;
+  final String? subtitle;
+  final String? initialOtp;
+  final VoidCallback? onSuccess;
+  final String? successMessage;
+  final bool allowPaste; 
 
-  const OtpVerifyScreen({
+  const OtpCodeScreen({
     super.key,
     required this.phoneNumber,
     required this.verificationId,
-    this.autoSmsCode,
-    required this.onResendOtp,
+    required this.onVerify,
+    required this.onResend,
+    this.title,
+    this.subtitle,
+    this.initialOtp,
+    this.onSuccess,
+    this.successMessage,
+    this.allowPaste = true, 
   });
 
   @override
-  State<OtpVerifyScreen> createState() => _OtpVerifyScreenState();
+  State<OtpCodeScreen> createState() => _OtpCodeScreenState();
 }
 
-class _OtpVerifyScreenState extends State<OtpVerifyScreen> {
-  final FirebaseAuth _auth = FirebaseAuth.instance;
+class _OtpCodeScreenState extends State<OtpCodeScreen> {
   final List<TextEditingController> _controllers = List.generate(6, (_) => TextEditingController());
   final List<FocusNode> _focusNodes = List.generate(6, (_) => FocusNode());
   bool _isVerifyingOtp = false;
@@ -36,9 +46,10 @@ class _OtpVerifyScreenState extends State<OtpVerifyScreen> {
   @override
   void initState() {
     super.initState();
-    if (widget.autoSmsCode != null && widget.autoSmsCode!.length == 6) {
+    // ถ้ามี initialOtp ให้เติมในช่อง OTP อัตโนมัติ
+    if (widget.initialOtp != null && widget.initialOtp!.length == 6) {
       for (int i = 0; i < 6; i++) {
-        _controllers[i].text = widget.autoSmsCode![i];
+        _controllers[i].text = widget.initialOtp![i];
       }
     }
     _startTimer();
@@ -80,7 +91,7 @@ class _OtpVerifyScreenState extends State<OtpVerifyScreen> {
     final otp = _controllers.map((controller) => controller.text).join();
     if (otp.length != 6) {
       setState(() {
-        _errorMessage = 'กรุณากรอกรหัส OTP 6 หลัก';
+        _errorMessage = 'Please enter the 6-digit OTP code';
       });
       return;
     }
@@ -91,48 +102,30 @@ class _OtpVerifyScreenState extends State<OtpVerifyScreen> {
     });
 
     try {
-      final PhoneAuthCredential credential = PhoneAuthProvider.credential(
-        verificationId: widget.verificationId,
-        smsCode: otp,
-      );
-      await _auth.signInWithCredential(credential);
-
+      await widget.onVerify(otp);
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
-          content: Text('ยืนยันรหัส OTP สำเร็จ!', style: GoogleFonts.poppins()),
+          content: Text(
+            widget.successMessage ?? 'OTP verification successful!',
+            style: GoogleFonts.poppins(),
+          ),
           backgroundColor: Colors.green,
         ),
       );
-      Navigator.pushReplacement(
-        context,
-        MaterialPageRoute(
-          builder: (context) => NewPasswordScreen(phoneNumber: widget.phoneNumber),
-        ),
-      );
-    } on FirebaseAuthException catch (e) {
-      if (!mounted) return;
-      setState(() {
-        _isVerifyingOtp = false;
-        if (e.code == 'invalid-verification-code') {
-          _errorMessage = 'รหัส OTP ไม่ถูกต้อง';
-        } else if (e.code == 'invalid-verification-id') {
-          _errorMessage = 'รหัสยืนยันหมดอายุ กรุณาขอรหัสใหม่';
-        } else {
-          _errorMessage = e.message ?? 'เกิดข้อผิดพลาดในการยืนยันรหัส OTP';
-        }
-      });
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text(_errorMessage!, style: GoogleFonts.poppins())),
-      );
+      if (widget.onSuccess != null) {
+        widget.onSuccess!();
+      } else {
+        Navigator.pop(context, true);
+      }
     } catch (e) {
       if (!mounted) return;
       setState(() {
         _isVerifyingOtp = false;
-        _errorMessage = 'เกิดข้อผิดพลาด: ${e.toString()}';
+        _errorMessage = 'An error occurred: ${e.toString()}';
       });
       ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('เกิดข้อผิดพลาด: ${e.toString()}', style: GoogleFonts.poppins())),
+        SnackBar(content: Text('An error occurred: ${e.toString()}', style: GoogleFonts.poppins())),
       );
     } finally {
       if (mounted) {
@@ -142,6 +135,7 @@ class _OtpVerifyScreenState extends State<OtpVerifyScreen> {
       }
     }
   }
+
 
   @override
   Widget build(BuildContext context) {
@@ -180,7 +174,7 @@ class _OtpVerifyScreenState extends State<OtpVerifyScreen> {
               ),
               const SizedBox(height: 24),
               Text(
-                'Verification',
+                widget.title ?? 'Verification',
                 style: GoogleFonts.poppins(
                   fontSize: 22,
                   fontWeight: FontWeight.bold,
@@ -188,7 +182,7 @@ class _OtpVerifyScreenState extends State<OtpVerifyScreen> {
               ),
               const SizedBox(height: 10),
               Text(
-                "Enter your OTP code number",
+                widget.subtitle ?? "Enter your OTP code number",
                 style: GoogleFonts.poppins(
                   fontSize: 14,
                   fontWeight: FontWeight.bold,
@@ -206,13 +200,21 @@ class _OtpVerifyScreenState extends State<OtpVerifyScreen> {
                 child: Column(
                   children: [
                     Row(
-                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                      children: List.generate(6, (index) => _textFieldOTP(
-                        controller: _controllers[index],
-                        focusNode: _focusNodes[index],
-                        first: index == 0,
-                        last: index == 5,
-                      )),
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      children: List.generate(
+                        6,
+                        (index) => Expanded(
+                          child: Padding(
+                            padding: const EdgeInsets.symmetric(horizontal: 4.0),
+                            child: _textFieldOTP(
+                              controller: _controllers[index],
+                              focusNode: _focusNodes[index],
+                              first: index == 0,
+                              last: index == 5,
+                            ),
+                          ),
+                        ),
+                      ),
                     ),
                     const SizedBox(height: 22),
                     SizedBox(
@@ -220,7 +222,7 @@ class _OtpVerifyScreenState extends State<OtpVerifyScreen> {
                       child: ElevatedButton(
                         onPressed: _isVerifyingOtp ? null : _verifyOtp,
                         style: ElevatedButton.styleFrom(
-                          backgroundColor: Colors.purple,
+                          backgroundColor: Colors.lightBlue,
                           foregroundColor: Colors.white,
                           padding: const EdgeInsets.all(14.0),
                           shape: RoundedRectangleBorder(
@@ -256,7 +258,7 @@ class _OtpVerifyScreenState extends State<OtpVerifyScreen> {
               ),
               const SizedBox(height: 18),
               Text(
-                "Didn't you receive any code?",
+                "Didn't receive any code?",
                 style: GoogleFonts.poppins(
                   fontSize: 14,
                   fontWeight: FontWeight.bold,
@@ -268,7 +270,7 @@ class _OtpVerifyScreenState extends State<OtpVerifyScreen> {
               GestureDetector(
                 onTap: _canResend
                     ? () {
-                        widget.onResendOtp();
+                        widget.onResend();
                         _startTimer();
                       }
                     : null,
@@ -277,7 +279,7 @@ class _OtpVerifyScreenState extends State<OtpVerifyScreen> {
                   style: GoogleFonts.poppins(
                     fontSize: 18,
                     fontWeight: FontWeight.bold,
-                    color: _canResend ? Colors.purple : Colors.grey,
+                    color: _canResend ? Colors.lightBlueAccent : Colors.grey,
                   ),
                   textAlign: TextAlign.center,
                 ),
@@ -296,43 +298,61 @@ class _OtpVerifyScreenState extends State<OtpVerifyScreen> {
     required bool last,
   }) {
     return SizedBox(
-      height: 85,
-      child: AspectRatio(
-        aspectRatio: 1.0,
-        child: TextField(
-          controller: controller,
-          focusNode: focusNode,
-          autofocus: first,
-          onChanged: (value) {
-            if (value.length == 1 && !last) {
-              focusNode.nextFocus();
+      height: 48,
+      child: TextField(
+        controller: controller,
+        focusNode: focusNode,
+        autofocus: first,
+        onChanged: (value) async {
+          // รองรับ paste เฉพาะช่องแรกเท่านั้น
+          if (first && value.length == 6 && RegExp(r'^\d{6}$').hasMatch(value)) {
+            for (int i = 0; i < 6; i++) {
+              _controllers[i].text = value[i];
             }
-            if (value.isEmpty && !first) {
-              focusNode.previousFocus();
-            }
-          },
-          showCursor: false,
-          readOnly: false,
-          textAlign: TextAlign.center,
-          style: GoogleFonts.poppins(
-            fontSize: 24,
-            fontWeight: FontWeight.bold,
-          ),
-          keyboardType: TextInputType.number,
-          maxLength: 1,
-          decoration: InputDecoration(
-            counter: const Offstage(),
-            enabledBorder: OutlineInputBorder(
-              borderSide: const BorderSide(width: 2, color: Colors.black12),
-              borderRadius: BorderRadius.circular(12),
-            ),
-            focusedBorder: OutlineInputBorder(
-              borderSide: const BorderSide(width: 2, color: Colors.purple),
-              borderRadius: BorderRadius.circular(12),
-            ),
-          ),
+            FocusScope.of(context).unfocus();
+            await _verifyOtp();
+            return;
+          }
+          // ช่องอื่นๆ รับทีละหลัก
+          if (value.length == 1 && !last) {
+            focusNode.nextFocus();
+          }
+          if (value.isEmpty && !first) {
+            focusNode.previousFocus();
+          }
+        },
+        onSubmitted: (_) {
+          if (_controllers.every((c) => c.text.isNotEmpty)) {
+            _verifyOtp();
+          }
+        },
+        showCursor: true,
+        readOnly: false,
+        textAlign: TextAlign.center,
+        style: GoogleFonts.poppins(
+          fontSize: 20,
+          color: Colors.blue,
+          fontWeight: FontWeight.bold,
         ),
+        keyboardType: TextInputType.number,
+        maxLength: 1, // ให้แต่ละช่องรับทีละหลัก
+        decoration: InputDecoration(
+          counter: const Offstage(),
+          enabledBorder: OutlineInputBorder(
+            borderSide: const BorderSide(width: 2, color: Colors.black12),
+            borderRadius: BorderRadius.circular(12),
+          ),
+          focusedBorder: OutlineInputBorder(
+            borderSide: const BorderSide(width: 2, color: Colors.purple),
+            borderRadius: BorderRadius.circular(12),
+          ),
+          contentPadding: const EdgeInsets.symmetric(vertical: 8),
+        ),
+        inputFormatters: [
+          FilteringTextInputFormatter.digitsOnly,
+        ],
+        enableInteractiveSelection: widget.allowPaste,
       ),
     );
   }
-} 
+}

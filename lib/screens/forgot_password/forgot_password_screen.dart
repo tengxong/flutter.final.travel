@@ -1,11 +1,8 @@
-// lib/screens/forgot_password_screen.dart (หรือไฟล์ที่คุณสร้าง)
 import 'package:app_travel/utils/keyboard.dart';
 import 'package:flutter/material.dart';
 import 'package:firebase_auth/firebase_auth.dart';
-import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:form_field_validator/form_field_validator.dart';
 import 'dart:async';
-import 'package:app_travel/screens/forgot_password/otp_verify_screen.dart';
 import 'package:google_fonts/google_fonts.dart'; // Import GoogleFonts
 import 'package:flutter/gestures.dart';
 import 'package:app_travel/screens/login_screen.dart';
@@ -18,27 +15,14 @@ class ForgotPasswordScreen extends StatefulWidget {
 }
 
 class _ForgotPasswordScreenState extends State<ForgotPasswordScreen> {
-  final FirebaseAuth _auth = FirebaseAuth.instance;
-  final FirebaseFirestore _firestore = FirebaseFirestore.instance;
   final _formKey = GlobalKey<FormState>();
-  final _phoneController = TextEditingController();
-  String _phoneNumber = '';
-
+  final _emailController = TextEditingController();
   bool _isSendingOtp = false;
   String? _errorMessage;
 
   @override
-  void initState() {
-    super.initState();
-    // _phoneController.text = '+66'; // ลบการตั้งค่าเริ่มต้นออก
-    // _phoneController.selection = TextSelection.fromPosition(
-    //   TextPosition(offset: _phoneController.text.length),
-    // );
-  }
-
-  @override
   void dispose() {
-    _phoneController.dispose();
+    _emailController.dispose();
     super.dispose();
   }
 
@@ -52,92 +36,16 @@ class _ForgotPasswordScreenState extends State<ForgotPasswordScreen> {
     });
 
     try {
-      // ลบโค้ดเติมรหัสประเทศอัตโนมัติออก เพราะ validator บังคับให้กรอกแบบ E.164 แล้ว
-      String finalPhoneNumber = _phoneNumber.trim();
-      // if (!finalPhoneNumber.startsWith('+')) {
-      //   finalPhoneNumber = '+66$finalPhoneNumber'; 
-      // }
+      String email = _emailController.text.trim();
 
-      // For phone number lookup, the design doesn't show a country code picker.
-      // Assuming _phoneNumber is already in the full international format (e.g., +66xxxxxxxxxx)
-      // If not, you might need to add a way to get the country code here or modify Firestore logic.
-      QuerySnapshot userQuery = await _firestore
-          .collection('users')
-          .where('phone', isEqualTo: finalPhoneNumber) // ใช้ finalPhoneNumber สำหรับการค้นหา
-          .limit(1)
-          .get();
+      // ส่งลิงก์รีเซ็ตรหัสผ่านไปที่อีเมล
+      await FirebaseAuth.instance.sendPasswordResetEmail(email: email);
 
-      if (userQuery.docs.isEmpty) {
-        if (!mounted) return;
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('ไม่พบเบอร์โทรศัพท์นี้ในระบบ', style: GoogleFonts.poppins())),
-        );
-        setState(() => _isSendingOtp = false);
-        return;
-      }
-
-      await _auth.verifyPhoneNumber(
-        phoneNumber: finalPhoneNumber, // ใช้ finalPhoneNumber สำหรับ Firebase Auth
-        verificationCompleted: (PhoneAuthCredential credential) async {
-          if (!mounted) return;
-          ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(content: Text('ยืนยันรหัส OTP อัตโนมัติสำเร็จ! กำลังนำทาง...', style: GoogleFonts.poppins())),
-          );
-          Navigator.pushReplacement(
-            context,
-            MaterialPageRoute(
-              builder: (context) => OtpVerifyScreen(
-                phoneNumber: finalPhoneNumber,
-                verificationId: credential.verificationId!,
-                autoSmsCode: credential.smsCode,
-                onResendOtp: _sendOtp,
-              ),
-            ),
-          );
-          setState(() {
-            _isSendingOtp = false;
-          });
-        },
-        verificationFailed: (FirebaseAuthException e) {
-          if (!mounted) return;
-          setState(() {
-            _isSendingOtp = false;
-            _errorMessage = 'ยืนยันเบอร์โทรศัพท์ล้มเหลว: ${e.message}';
-          });
-          ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(content: Text(_errorMessage!, style: GoogleFonts.poppins())),
-          );
-        },
-        codeSent: (String verificationId, int? resendToken) {
-          if (!mounted) return;
-          setState(() {
-            _isSendingOtp = false;
-          });
-          ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(content: Text('ส่งรหัส OTP แล้ว! กรุณากรอกรหัส', style: GoogleFonts.poppins())),
-          );
-          Navigator.push(
-            context,
-            MaterialPageRoute(
-              builder: (context) => OtpVerifyScreen(
-                phoneNumber: finalPhoneNumber,
-                verificationId: verificationId,
-                onResendOtp: _sendOtp,
-              ),
-            ),
-          );
-        },
-        codeAutoRetrievalTimeout: (String verificationId) {
-          if (!mounted) return;
-          setState(() {
-            _isSendingOtp = false;
-          });
-          ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(content: Text('หมดเวลาการดึงรหัส OTP อัตโนมัติ', style: GoogleFonts.poppins())),
-          );
-        },
-        timeout: const Duration(seconds: 60),
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('A password reset link has been sent to your email.', style: GoogleFonts.poppins())),
       );
+      setState(() => _isSendingOtp = false);
     } on FirebaseAuthException catch (e) {
       if (!mounted) return;
       setState(() {
@@ -145,16 +53,16 @@ class _ForgotPasswordScreenState extends State<ForgotPasswordScreen> {
         _errorMessage = e.message;
       });
       ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text(e.message ?? 'เกิดข้อผิดพลาดในการส่งรหัส OTP', style: GoogleFonts.poppins())),
+        SnackBar(content: Text(e.message ?? 'An error occurred while sending reset email', style: GoogleFonts.poppins())),
       );
     } catch (e) {
       if (!mounted) return;
       setState(() {
         _isSendingOtp = false;
-        _errorMessage = 'เกิดข้อผิดพลาด: ${e.toString()}';
+        _errorMessage = 'An error occurred: ${e.toString()}';
       });
       ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('เกิดข้อผิดพลาด: ${e.toString()}', style: GoogleFonts.poppins())),
+        SnackBar(content: Text('An error occurred: ${e.toString()}', style: GoogleFonts.poppins())),
       );
     }
   }
@@ -163,7 +71,6 @@ class _ForgotPasswordScreenState extends State<ForgotPasswordScreen> {
   Widget build(BuildContext context) {
     return KeyboardDismissOnTap(
       child: Scaffold(
-        // Removed AppBar
         body: Stack(
           children: [
             // Background Image
@@ -180,11 +87,11 @@ class _ForgotPasswordScreenState extends State<ForgotPasswordScreen> {
             // Content ScrollView
             SingleChildScrollView(
               child: Padding(
-                padding: const EdgeInsets.symmetric(horizontal: 28.0), // Consistent padding
+                padding: const EdgeInsets.symmetric(horizontal: 28.0),
                 child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start, // Align to left for title
+                  crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    const SizedBox(height: 100), // Spacing from top
+                    const SizedBox(height: 100),
                     Text(
                       'Forgot Password',
                       style: GoogleFonts.poppins(
@@ -193,18 +100,18 @@ class _ForgotPasswordScreenState extends State<ForgotPasswordScreen> {
                         color: Colors.white,
                       ),
                     ),
-                    const SizedBox(height: 50), // Spacing between title and form
+                    const SizedBox(height: 50),
                     Form(
                       key: _formKey,
                       child: Column(
                         children: [
                           TextFormField(
-                            controller: _phoneController,
-                            keyboardType: TextInputType.phone,
+                            controller: _emailController,
+                            keyboardType: TextInputType.emailAddress,
                             style: GoogleFonts.poppins(color: Colors.black),
                             decoration: InputDecoration(
-                              labelText: 'Phone Number',
-                              hintText: 'Enter your phone number (e.g., +66XXXXXXXXX)',
+                              labelText: 'Email',
+                              hintText: 'Enter your email address',
                               hintStyle: GoogleFonts.poppins(color: Colors.grey[600]),
                               labelStyle: GoogleFonts.poppins(color: Colors.grey[800]),
                               filled: true,
@@ -222,13 +129,12 @@ class _ForgotPasswordScreenState extends State<ForgotPasswordScreen> {
                                 borderSide: const BorderSide(color: Colors.blueAccent),
                               ),
                               contentPadding: const EdgeInsets.symmetric(vertical: 16, horizontal: 20),
-                              suffixIcon: Icon(Icons.phone, color: Colors.grey[600]), // Icon at the end
+                              suffixIcon: Icon(Icons.email, color: Colors.grey[600]),
                             ),
                             validator: MultiValidator([
-                              RequiredValidator(errorText: 'Please enter your phone number'),
-                              PatternValidator(r'^\+[1-9]\d{7,14}$', errorText: 'Invalid phone number (must be in E.164 format, e.g., +66XXXXXXXXX)'),
+                              RequiredValidator(errorText: 'Please enter your email'),
+                              EmailValidator(errorText: 'Invalid email address'),
                             ]).call,
-                            onChanged: (v) => _phoneNumber = v,
                           ),
                           const SizedBox(height: 32),
                           SizedBox(
@@ -252,9 +158,9 @@ class _ForgotPasswordScreenState extends State<ForgotPasswordScreen> {
                                         strokeWidth: 2,
                                       ),
                                     )
-                                  : const Icon(Icons.send), // Send icon
+                                  : const Icon(Icons.send),
                               label: Text(
-                                _isSendingOtp ? 'Sending...' : 'Send',
+                                _isSendingOtp ? 'Sending...' : 'Send Reset Link',
                                 style: GoogleFonts.poppins(fontSize: 18, fontWeight: FontWeight.w600, color: Colors.white),
                               ),
                             ),

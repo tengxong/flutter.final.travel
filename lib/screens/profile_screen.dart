@@ -52,9 +52,11 @@ class _ProfileScreenState extends State<ProfileScreen> {
   Future<void> _loadUserData() async {
     try {
       final user = FirebaseAuth.instance.currentUser;
-      setState(() {
-        _user = user;
-      });
+      if (mounted) {
+        setState(() {
+          _user = user;
+        });
+      }
       
       if (user != null) {
         int retryCount = 0;
@@ -154,9 +156,11 @@ class _ProfileScreenState extends State<ProfileScreen> {
       );
 
       if (image != null) {
-        setState(() {
-          _isUploading = true;
-        });
+        if (mounted) {
+          setState(() {
+            _isUploading = true;
+          });
+        }
 
         try {
           final file = File(image.path);
@@ -191,9 +195,11 @@ class _ProfileScreenState extends State<ProfileScreen> {
                 'lastUpdated': FieldValue.serverTimestamp(),
               });
 
-          setState(() {
-            _isUploading = false;
-          });
+          if (mounted) {
+            setState(() {
+              _isUploading = false;
+            });
+          }
 
           if (mounted) {
             ScaffoldMessenger.of(context).showSnackBar(
@@ -205,9 +211,11 @@ class _ProfileScreenState extends State<ProfileScreen> {
           }
         } catch (uploadError) {
           _logger.e('Error during upload process', error: uploadError);
-          setState(() {
-            _isUploading = false;
-          });
+          if (mounted) {
+            setState(() {
+              _isUploading = false;
+            });
+          }
           
           String errorMessage = 'Error uploading image';
           if (uploadError.toString().contains('Cloudinary')) {
@@ -236,9 +244,11 @@ class _ProfileScreenState extends State<ProfileScreen> {
       }
     } catch (e) {
       _logger.e('Error picking or uploading image', error: e);
-      setState(() {
-        _isUploading = false;
-      });
+      if (mounted) {
+        setState(() {
+          _isUploading = false;
+        });
+      }
       String errorMessage = 'Error picking or uploading image';
       if (e.toString().contains('permission')) {
         errorMessage = 'No permission to access gallery';
@@ -365,10 +375,10 @@ class _ProfileScreenState extends State<ProfileScreen> {
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
-        backgroundColor: const Color.fromARGB(255, 79, 186, 235),
+        backgroundColor: const Color.fromARGB(255, 250, 250, 250),
         elevation: 0,
         leading: IconButton(
-          icon: const Icon(Icons.arrow_back, color: Colors.white),
+          icon: const Icon(Icons.arrow_back, color: Colors.lightBlue),
           onPressed: () {
             Navigator.pushNamedAndRemoveUntil(
               context,
@@ -380,7 +390,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
         title: Text(
           'Profile',
           style: GoogleFonts.poppins(
-            color: Colors.white,
+            color: Colors.lightBlue,
             fontWeight: FontWeight.bold,
           ),
         ),

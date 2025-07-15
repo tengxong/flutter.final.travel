@@ -81,37 +81,45 @@ class _SearchScreenState extends State<SearchScreen> {
       if (response.statusCode == 200) {
         final data = json.decode(response.body);
         if (data is List) {
-          setState(() {
-            places = data.map((e) => Place.fromJson(e)).toList();
-            filteredPlaces = places;
-            
-            // Extract unique countries and categories
-            for (var place in places) {
-              countries.add(place.country);
-              if (place.category.isNotEmpty) {
-                categories.add(place.category);
+          if (mounted) {
+            setState(() {
+              places = data.map((e) => Place.fromJson(e)).toList();
+              filteredPlaces = places;
+              
+              // Extract unique countries and categories
+              for (var place in places) {
+                countries.add(place.country);
+                if (place.category.isNotEmpty) {
+                  categories.add(place.category);
+                }
               }
-            }
-            
-            isLoading = false;
-          });
+              
+              isLoading = false;
+            });
+          }
         } else {
-          setState(() {
-            isLoading = false;
-            errorMessage = 'No places found in JSON.';
-          });
+          if (mounted) {
+            setState(() {
+              isLoading = false;
+              errorMessage = 'No places found in JSON.';
+            });
+          }
         }
       } else {
-        setState(() {
-          isLoading = false;
-          errorMessage = 'Failed to load places (status ${response.statusCode})';
-        });
+        if (mounted) {
+          setState(() {
+            isLoading = false;
+            errorMessage = 'Failed to load places (status ${response.statusCode})';
+          });
+        }
       }
     } catch (e) {
-      setState(() {
-        isLoading = false;
-        errorMessage = 'Failed to load places: $e';
-      });
+      if (mounted) {
+        setState(() {
+          isLoading = false;
+          errorMessage = 'Failed to load places: $e';
+        });
+      }
     }
   }
 
@@ -265,7 +273,7 @@ class _SearchScreenState extends State<SearchScreen> {
                           final item = filteredPlaces[index];
                           return GestureDetector(
                             onTap: () async {
-                              await Navigator.push(
+                              final result = await Navigator.push(
                                 context,
                                 MaterialPageRoute(
                                   builder: (_) => DetailScreen(
@@ -281,7 +289,9 @@ class _SearchScreenState extends State<SearchScreen> {
                                 ),
                               );
                               if (!mounted) return;
-                              Navigator.pop(context, item);
+                              if (result != null) {
+                                Navigator.pop(this.context, item);
+                              }
                             },
                             child: _buildSearchResultCard(
                               item.name,

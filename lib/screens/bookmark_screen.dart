@@ -61,18 +61,24 @@ class _BookmarkScreenState extends State<BookmarkScreen> {
   }
 
   Future<void> _loadData() async {
-    setState(() { _isLoading = true; });
+    if (mounted) {
+      setState(() { _isLoading = true; });
+    }
     await loadBookmarks();
     await fetchPlaces();
-    setState(() { _isLoading = false; });
+    if (mounted) {
+      setState(() { _isLoading = false; });
+    }
   }
 
   Future<void> loadBookmarks() async {
     final prefs = await SharedPreferences.getInstance();
     final ids = prefs.getStringList('bookmarked_place_ids') ?? [];
-    setState(() {
-      bookmarkedPlaceIds = ids.map((e) => int.tryParse(e)).whereType<int>().toSet();
-    });
+    if (mounted) {
+      setState(() {
+        bookmarkedPlaceIds = ids.map((e) => int.tryParse(e)).whereType<int>().toSet();
+      });
+    }
   }
 
   Future<void> fetchPlaces() async {
@@ -82,12 +88,16 @@ class _BookmarkScreenState extends State<BookmarkScreen> {
       if (response.statusCode == 200) {
         final data = json.decode(response.body);
         if (data is List) {
-          setState(() {
-            allPlaces = data.map((e) => Place.fromJson(e)).toList();
-          });
+          if (mounted) {
+            setState(() {
+              allPlaces = data.map((e) => Place.fromJson(e)).toList();
+            });
+          }
         }
       }
-    } catch (_) {}
+    } catch (e) {
+      // Handle error silently or log it
+    }
   }
 
   Future<void> toggleBookmark(Place place) async {

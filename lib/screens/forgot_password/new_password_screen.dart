@@ -14,6 +14,7 @@ class _NewPasswordScreenState extends State<NewPasswordScreen> {
   final _formKey = GlobalKey<FormState>();
   final FirebaseFunctions _functions = FirebaseFunctions.instance;
   final _newPasswordController = TextEditingController();
+  final _confirmPasswordController = TextEditingController(); // เพิ่ม controller สำหรับยืนยันรหัสผ่าน
   String _newPassword = '';
   String _confirmPassword = '';
   bool _isLoading = false;
@@ -23,6 +24,7 @@ class _NewPasswordScreenState extends State<NewPasswordScreen> {
   @override
   void dispose() {
     _newPasswordController.dispose();
+    _confirmPasswordController.dispose(); // dispose ตัวใหม่ด้วย
     super.dispose();
   }
 
@@ -30,11 +32,12 @@ class _NewPasswordScreenState extends State<NewPasswordScreen> {
     if (!_formKey.currentState!.validate()) return;
 
     _newPassword = _newPasswordController.text;
+    _confirmPassword = _confirmPasswordController.text;
 
     if (_newPassword != _confirmPassword) {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(
-          content: Text('รหัสผ่านไม่ตรงกัน'),
+          content: Text('Passwords do not match'),
           backgroundColor: Colors.red,
         ),
       );
@@ -54,7 +57,7 @@ class _NewPasswordScreenState extends State<NewPasswordScreen> {
       if (result.data['success']) {
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(
-            content: Text('เปลี่ยนรหัสผ่านสำเร็จ!'),
+            content: Text('Password changed successfully!'),
             backgroundColor: Colors.green,
           ),
         );
@@ -62,7 +65,7 @@ class _NewPasswordScreenState extends State<NewPasswordScreen> {
       } else {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
-            content: Text(result.data['message'] ?? 'เกิดข้อผิดพลาดในการรีเซ็ตรหัสผ่าน'),
+            content: Text(result.data['message'] ?? 'An error occurred while resetting password'),
             backgroundColor: Colors.red,
           ),
         );
@@ -72,7 +75,7 @@ class _NewPasswordScreenState extends State<NewPasswordScreen> {
       setState(() => _isLoading = false);
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
-          content: Text('เกิดข้อผิดพลาดจาก Cloud Function: ${e.message}'),
+          content: Text('Cloud Function error: ${e.message}'),
           backgroundColor: Colors.red,
         ),
       );
@@ -81,7 +84,7 @@ class _NewPasswordScreenState extends State<NewPasswordScreen> {
       setState(() => _isLoading = false);
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
-          content: Text('เกิดข้อผิดพลาด: ${e.toString()}'),
+          content: Text('An error occurred: ${e.toString()}'),
           backgroundColor: Colors.red,
         ),
       );
@@ -98,7 +101,7 @@ class _NewPasswordScreenState extends State<NewPasswordScreen> {
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
-        title: const Text('ตั้งรหัสผ่านใหม่'),
+        title: const Text('Set New Password'),
         backgroundColor: Colors.blueAccent,
       ),
       body: Padding(
@@ -111,7 +114,7 @@ class _NewPasswordScreenState extends State<NewPasswordScreen> {
               TextFormField(
                 controller: _newPasswordController,
                 decoration: InputDecoration(
-                  labelText: 'รหัสผ่านใหม่',
+                  labelText: 'New Password',
                   prefixIcon: const Icon(Icons.lock),
                   suffixIcon: IconButton(
                     icon: Icon(
@@ -131,14 +134,15 @@ class _NewPasswordScreenState extends State<NewPasswordScreen> {
                 ),
                 obscureText: _obscureText,
                 validator: MultiValidator([
-                  RequiredValidator(errorText: 'กรุณากรอกรหัสผ่านใหม่'),
-                  MinLengthValidator(6, errorText: 'รหัสผ่านต้องมีอย่างน้อย 6 ตัวอักษร'),
+                  RequiredValidator(errorText: 'Please enter a new password'),
+                  MinLengthValidator(6, errorText: 'Password must be at least 6 characters'),
                 ]).call,
               ),
               const SizedBox(height: 20),
               TextFormField(
+                controller: _confirmPasswordController,
                 decoration: InputDecoration(
-                  labelText: 'ยืนยันรหัสผ่านใหม่',
+                  labelText: 'Confirm New Password',
                   prefixIcon: const Icon(Icons.lock),
                   suffixIcon: IconButton(
                     icon: Icon(
@@ -157,8 +161,15 @@ class _NewPasswordScreenState extends State<NewPasswordScreen> {
                   fillColor: Colors.white,
                 ),
                 obscureText: _obscureConfirmText,
-                validator: (val) => MatchValidator(errorText: 'รหัสผ่านไม่ตรงกัน').validateMatch(val!, _newPasswordController.text),
-                onSaved: (v) => _confirmPassword = v ?? '',
+                validator: (val) {
+                  if (val == null || val.isEmpty) {
+                    return 'Please confirm your new password';
+                  }
+                  if (val != _newPasswordController.text) {
+                    return 'Passwords do not match';
+                  }
+                  return null;
+                },
               ),
               const SizedBox(height: 24),
               SizedBox(
@@ -183,7 +194,7 @@ class _NewPasswordScreenState extends State<NewPasswordScreen> {
                         )
                       : const Icon(Icons.refresh),
                   label: Text(
-                    _isLoading ? 'กำลังเปลี่ยนรหัสผ่าน...' : 'เปลี่ยนรหัสผ่าน',
+                    _isLoading ? 'Changing password...' : 'Change Password',
                     style: const TextStyle(fontSize: 18),
                   ),
                 ),
@@ -194,4 +205,4 @@ class _NewPasswordScreenState extends State<NewPasswordScreen> {
       ),
     );
   }
-} 
+}
